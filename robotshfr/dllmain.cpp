@@ -26,15 +26,30 @@
 #include <Detours.h>
 
 typedef char (*originalFunc)(int classptr);
-originalFunc originalFuncPtr = (originalFunc)0x0049DA60;
+typedef char (*originalFunc)(int classptr);
+originalFunc originalFuncEUPtr = (originalFunc)0x0049DA60;
+originalFunc originalFuncUSPtr = (originalFunc)0x00472800;
 
-char hookedFunc(int classptr)
+char hookedFuncEU(int classptr)
 {
-    char result = originalFuncPtr(classptr);
+    char result = originalFuncEUPtr(classptr);
 
     if (*(int*)0x007BB514 != 9) // level index != Bigweld Chase
     {
         *(int*)0x007AD258 = 60; // target FPS
+    }
+
+    return result;
+}
+
+char hookedFuncUS(int classptr)
+{
+    char result = originalFuncUSPtr(classptr);
+
+    if (*(int*)0x007B324C != 9) // level index != Bigweld Chase
+    {
+        *(int*)0x007B2FEC = 60; // target FPS 1
+        *(int*)0x00620020 = 60; // target FPS 2
     }
 
     return result;
@@ -47,7 +62,20 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         DisableThreadLibraryCalls(hModule);
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
-        DetourAttach(&(PVOID&)originalFuncPtr, (PVOID)hookedFunc);
+        if (*reinterpret_cast<unsigned char*>(originalFuncEUPtr) == 0x83)
+        {
+            //MessageBoxW(NULL, L"EU version.", L"RobotsHFR", MB_OK);
+            DetourAttach(&(PVOID&)originalFuncEUPtr, (PVOID)hookedFuncEU);
+        }
+        else if (*reinterpret_cast<unsigned char*>(originalFuncUSPtr) == 0x83)
+        {
+            //MessageBoxW(NULL, L"US version.", L"RobotsHFR", MB_OK);
+            DetourAttach(&(PVOID&)originalFuncUSPtr, (PVOID)hookedFuncUS);
+        }
+        else
+        {
+            MessageBoxW(NULL, L"Unsupported game version.", L"RobotsHFR", MB_OK);
+        }
         DetourTransactionCommit();
     }
 
